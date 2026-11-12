@@ -2,6 +2,7 @@
 # 一键启动：读取 .env 生成密钥文件，用支持命令行加载扩展的浏览器打开英文样例页。
 # 官方版 Chrome 从 137 起移除 --load-extension，所以这里优先找 Chrome for Testing 或 Chromium。
 set -e
+setopt null_glob
 cd "$(dirname "$0")"
 
 EXT_DIR="$PWD"
@@ -32,14 +33,21 @@ EOF
 echo "已依据 .env 写入 $KEY_FILE"
 
 find_chrome() {
+  setopt local_options null_glob
   local candidates=()
   [ -n "$CHROME_BIN" ] && candidates+=("$CHROME_BIN")
   candidates+=("/Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing")
-  local cached
-  for cached in "$HOME"/Library/Caches/ms-playwright/chromium-*/chrome-mac*/"Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"; do
-    [ -x "$cached" ] && candidates+=("$cached")
-  done
+
+  local newest
+  newest=$(ls -d "$HOME"/Library/Caches/ms-playwright/chromium-*/chrome-mac*/"Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing" 2>/dev/null | sort -r | head -1)
+  [ -n "$newest" ] && candidates+=("$newest")
+  newest=$(ls -d "$HOME"/.local/share/chrome-for-testing/*/"Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing" 2>/dev/null | sort -r | head -1)
+  [ -n "$newest" ] && candidates+=("$newest")
+  newest=$(ls -d "$HOME"/.local/share/chrome-for-testing/chrome-*/chrome-mac*/"Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing" 2>/dev/null | sort -r | head -1)
+  [ -n "$newest" ] && candidates+=("$newest")
+
   candidates+=("/Applications/Chromium.app/Contents/MacOS/Chromium")
+  local bin
   for bin in "${candidates[@]}"; do
     if [ -x "$bin" ]; then
       echo "$bin"
@@ -87,5 +95,5 @@ echo "启动完成，用法："
 echo "1. 点工具栏的扩展图标，再点 翻译此页。"
 echo "2. 页面右下角出现进度胶囊，显示已译段数与队列。"
 echo "3. 滚动到哪译到哪，停止滚动约 2.5 秒后补全剩余内容。"
-echo "4. 选中英文会浮出翻译按钮，鼠标停在译文上显示原句。"
+echo "4. 鼠标停在译文上显示原句，移开即消失。"
 echo "5. 快捷键 Alt+Shift+T 切换译文与原文。"
