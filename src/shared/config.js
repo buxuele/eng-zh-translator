@@ -24,7 +24,6 @@ export const DEFAULTS = {
   blacklist: [],
   autoTranslateHosts: [],
   scope: "all",
-  selectionTranslate: true,
   hoverOriginal: true,
   flashHighlight: true,
 };
@@ -64,9 +63,6 @@ export const MSG = {
   STATS: "STATS",
   CLEAR_CACHE: "CLEAR_CACHE",
   CACHE_PURGE: "CACHE_PURGE",
-  TEXT: "TEXT",
-  TEXT_DELTA: "TEXT_DELTA",
-  TEXT_DONE: "TEXT_DONE",
 };
 
 // 域名归一化：去掉协议、路径、端口与通配前缀，只保留主机名。
@@ -149,14 +145,6 @@ export function buildSystemPrompt(lang) {
 
 export function buildUserMessage(segments) {
   return segments.map((s, i) => `${i}\t${s}`).join("\n");
-}
-
-export function buildSelectionPrompt(lang) {
-  return (
-    `You are a professional translator inside a browser extension. Translate the user's selected text into ${lang}. ` +
-    `Output only the translation, with no quotes, no explanations and no JSON. ` +
-    `Keep the original tone, line breaks and inline punctuation. Keep proper nouns, code identifiers, numbers and URLs unchanged.`
-  );
 }
 
 export function cacheKeyFor(text, lang, model) {

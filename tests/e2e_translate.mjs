@@ -106,9 +106,6 @@ async function snapshot() {
   return page.evaluate(() => {
     const cjk = (t) => /[\u4e00-\u9fff]/.test(t || "");
     const paras = [...document.querySelectorAll(".para")];
-    const host = document.querySelector(".ez-ui-host");
-    const sr = host && host.shadowRoot;
-    const stateHost = sr;
     return {
       total: paras.length,
       top20: paras.slice(0, 20).filter((p) => cjk(p.textContent)).length,
@@ -123,14 +120,7 @@ async function snapshot() {
       dynamic: document.getElementById("dynamicOne")
         ? { translated: cjk(document.getElementById("dynamicOne").textContent), text: document.getElementById("dynamicOne").textContent.slice(0, 40) }
         : null,
-      pill: stateHost
-        ? {
-            label: sr.querySelector(".label").textContent,
-            count: sr.querySelector(".count").textContent,
-            bar: sr.querySelector(".bar").style.width,
-            toggle: sr.querySelector(".toggle").textContent,
-          }
-        : null,
+      overlays: document.querySelectorAll("[data-ez]").length,
       highlight: typeof CSS !== "undefined" && CSS.highlights ? CSS.highlights.has("ez-flash") : null,
       firstPara: (document.querySelector(".para") ? document.querySelector(".para").textContent : "").slice(0, 60),
     };
@@ -162,7 +152,8 @@ console.log(`首个译文出现耗时 ${firstVisibleMs === null ? "超过 6 秒"
 console.log(`视口采样：顶部 20 段已译 ${early.top20}，全页已译 ${early.all}，末尾 5 段已译 ${early.bottom5}`);
 check("视口内先出译文", firstVisibleMs !== null && firstVisibleMs < 6000, `${firstVisibleMs} 毫秒`);
 check("整页并未一次性翻完", early.bottom5 === 0, `末尾 5 段已译 ${early.bottom5} 段`);
-check("进度胶囊显示真实计数", !!early.pill && /^\d+ \/ \d+/.test(early.pill.count), JSON.stringify(early.pill));
+const earlyState = (await send("status")).state;
+check("队列计数来自引擎真实状态", !!earlyState && earlyState.total > 0, `总数 ${earlyState ? earlyState.total : 0}，已译 ${earlyState ? earlyState.done : 0}`);
 await page.screenshot({ path: path.join(SHOT_DIR, "01-滚动流式翻译中.png") });
 
 await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
@@ -207,19 +198,14 @@ await page.screenshot({ path: path.join(SHOT_DIR, "03-整页翻译完成.png") }
 const state = await send("status");
 console.log(`引擎状态：${JSON.stringify(state.state)}`);
 
-await page.evaluate(() => {
-  const host = document.querySelector(".ez-ui-host");
-  host.shadowRoot.querySelector(".toggle").click();
-});
+await send("restore");
 await page.waitForTimeout(400);
 const restored = await snapshot();
 check("一键还原原文", want.firstPara.test(restored.firstPara), restored.firstPara);
+check("翻译后页面没有常驻浮层", restored.overlays === 0, `浮层 ${restored.overlays} 个`);
 await page.screenshot({ path: path.join(SHOT_DIR, "04-还原原文.png") });
 
-await page.evaluate(() => {
-  const host = document.querySelector(".ez-ui-host");
-  host.shadowRoot.querySelector(".toggle").click();
-});
+await send("toggle");
 await page.waitForTimeout(500);
 const reapplied = await snapshot();
 check("恢复译文即刻生效", /[\u4e00-\u9fff]/.test(reapplied.firstPara), reapplied.firstPara);

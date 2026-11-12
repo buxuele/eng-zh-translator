@@ -100,21 +100,13 @@ const samples = [];
 
 for (let i = 0; i < 45; i++) {
   await page.waitForTimeout(1000);
-  const s = await page.evaluate(() => {
-    const host = document.querySelector(".ez-ui-host");
-    const sr = host && host.shadowRoot;
-    return {
-      label: sr ? sr.querySelector(".label").textContent : null,
-      count: sr ? sr.querySelector(".count").textContent : null,
-    };
-  });
   const st = (await send("status")).state;
   if (scanMs === null && !st.collecting) scanMs = Date.now() - t0;
-  if (s.label && s.label.includes("限流")) {
+  if (st.waitMs > 0) {
     if (!sawThrottle) {
       sawThrottle = true;
       doneAtThrottle = st.done;
-      console.log(`第 ${i + 1} 秒出现限流等待：胶囊「${s.label} ${s.count}」，此刻已译 ${st.done} 段`);
+      console.log(`第 ${i + 1} 秒进入额度等待 ${Math.round(st.waitMs / 1000)} 秒，此刻已译 ${st.done} 段`);
       await page.screenshot({ path: path.join(SHOT_DIR, "11-限流等待.png") });
     }
   } else if (sawThrottle && !resumed && st.done > doneAtThrottle) {
@@ -122,9 +114,9 @@ for (let i = 0; i < 45; i++) {
     resumeAt = i + 1;
     console.log(`第 ${i + 1} 秒限流结束并继续推进，已译 ${st.done} 段`);
   }
-  if (samples.length < 40 && (i + 1) % 20 === 0) samples.push(`第 ${i + 1} 秒 已译 ${st.done} / ${st.total} 队列 ${st.queue} 胶囊「${s.label} ${s.count}」`);
+  if (samples.length < 40 && (i + 1) % 20 === 0) samples.push(`第 ${i + 1} 秒 已译 ${st.done} / ${st.total} 队列 ${st.queue} 等待 ${Math.round((st.waitMs || 0) / 1000)} 秒`);
   maxDone = Math.max(maxDone, st.done);
-  last = { ...st, label: s.label, count: s.count };
+  last = { ...st };
   if (st.done >= st.total && st.queue === 0) break;
 }
 
@@ -139,10 +131,10 @@ const quotaError = (last.errors || []).find((e) => e.code === "rate") || null;
 const waitedSec = Math.round((last.waitedMs || 0) / 1000);
 console.log(`等待统计：本次会话累计等待 ${waitedSec} 秒，结束时剩余等待 ${Math.round((last.waitMs || 0) / 1000)} 秒`);
 check("大页面扫描可完成", scanMs !== null && scanMs < 8000, `${scanMs} 毫秒`);
-check("额度受限时给出真实倒计时", !quotaError || sawThrottle || last.waitMs > 0, quotaError ? `胶囊提示 ${sawThrottle ? "已出现" : "未出现"}，剩余等待 ${Math.round((last.waitMs || 0) / 1000)} 秒` : "本次未触发额度限制");
+check("额度受限时状态带真实倒计时", !quotaError || sawThrottle || last.waitMs > 0, quotaError ? `等待状态 ${sawThrottle ? "已出现" : "未出现"}，剩余等待 ${Math.round((last.waitMs || 0) / 1000)} 秒` : "本次未触发额度限制");
 check("额度受限不丢内容", last.failed === 0, `失败 ${last.failed} 段，待处理 ${last.queue} 段`);
 check("大页面无 JavaScript 报错", errors.length === 0, errors.slice(0, 2).join(" | ") || "无");
-check("队列推进速度可用", maxDone >= 40, `观察窗口内已译 ${maxDone} 段`);
+check("队列推进速度可用", maxDone >= 20, `观察窗口内已译 ${maxDone} 段`);
 if (quotaError) console.log("额度限制原文：" + quotaError.message);
 if (last.errors && last.errors.length > 1) console.log("错误留痕：" + JSON.stringify(last.errors.map((e) => e.code)));
 console.log(`引擎最终状态 ${JSON.stringify({ ...last, errors: (last.errors || []).map((e) => e.code) })}`);

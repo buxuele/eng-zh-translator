@@ -4,38 +4,11 @@
   let engine = null;
   let ui = null;
   let settings = null;
-  let selectionBuffer = "";
   let tipTimer = null;
 
   function boot() {
-    ui = window.EZ.ui.create({
-      onToggle: () => toggle(),
-      onStop: () => {
-        engine.stop();
-      },
-      onRetry: () => {
-        engine.retry();
-      },
-      onDismissError: () => {},
-      onSelection: (text, rect) => translateSelection(text, rect),
-      onCopy: async (text) => {
-        try {
-          await navigator.clipboard.writeText(text);
-        } catch {
-          const area = document.createElement("textarea");
-          area.value = text;
-          area.style.position = "fixed";
-          area.style.opacity = "0";
-          document.body.appendChild(area);
-          area.select();
-          document.execCommand("copy");
-          area.remove();
-        }
-      },
-    });
-    engine = window.EZ.createEngine((state) => {
-      ui.render(state);
-    });
+    ui = window.EZ.ui.create();
+    engine = window.EZ.createEngine(() => {});
     engine.loadSettings().then(maybeAutoTranslate);
   }
 
@@ -67,77 +40,28 @@
     engine.start({ force: true });
   }
 
-  async function translateSelection(text, rect) {
-    selectionBuffer = "";
-    ui.beginSelection(rect);
-    engine.translateText(text, {
-      onDelta: (delta) => {
-        selectionBuffer += delta;
-        ui.appendSelection(selectionBuffer);
-      },
-      onDone: (result) => {
-        ui.endSelection(result.text || selectionBuffer, text.slice(0, 120));
-      },
-      onError: (msg) => {
-        ui.selectionError(msg && msg.message ? msg.message : "翻译失败");
-      },
-      onWait: (waitMs) => {
-        if (waitMs > 0) ui.appendSelection(`排队等待 ${Math.ceil(waitMs / 1000)} 秒…`);
-      },
-    });
-  }
-
-  function selectionReady() {
-    const sel = window.getSelection();
-    if (!sel || sel.isCollapsed) return null;
-    const text = sel.toString().trim();
-    if (text.length < 2 || text.length > 600) return null;
-    if (!/[A-Za-z]/.test(text)) return null;
-    if (!settings || settings.selectionTranslate === false) return null;
-    const range = sel.getRangeAt(0);
-    const rect = range.getBoundingClientRect();
-    if (!rect || (!rect.width && !rect.height)) return null;
-    return { text, rect };
-  }
-
-  document.addEventListener("mouseup", (event) => {
-    if (!engine) return;
-    if (event.target && event.target.closest && event.target.closest(".ez-ui-host")) return;
-    setTimeout(() => {
-      const hit = selectionReady();
-      if (hit) ui.showPick(hit.rect, hit.text);
-      else ui.hidePick();
-    }, 10);
-  });
-
-  document.addEventListener("mousedown", (event) => {
-    if (!engine) return;
-    if (event.target && event.target.closest && event.target.closest(".ez-ui-host")) return;
-    ui.hidePick();
-  });
-
   document.addEventListener("scroll", () => {
     if (!engine) return;
-    ui.hidePick();
-    ui.hideTip();
+    ui.hide();
   }, { passive: true, capture: true });
 
   document.addEventListener("mouseover", (event) => {
     if (!engine || !settings || settings.hoverOriginal === false) return;
     const target = event.target;
-    if (!target || !target.closest || target.closest(".ez-ui-host")) return;
+    if (!target || !target.closest) return;
+    if (target.closest("[data-ez]")) return;
     if (tipTimer) clearTimeout(tipTimer);
     tipTimer = setTimeout(() => {
       const info = engine.lookupOriginal(target);
-      if (info) ui.showTip(target.getBoundingClientRect(), info.original);
-      else ui.hideTip();
+      if (info) ui.show(target.getBoundingClientRect(), info.original);
+      else ui.hide();
     }, 500);
   });
 
-  document.addEventListener("mouseout", (event) => {
+  document.addEventListener("mouseout", () => {
     if (!engine) return;
     if (tipTimer) clearTimeout(tipTimer);
-    ui.hideTip();
+    ui.hide();
   });
 
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
@@ -190,6 +114,7 @@
     if (prev.mode !== next.mode || prev.targetLang !== next.targetLang) {
       if (engine.isActive()) engine.start();
     }
+    if (next.hoverOriginal === false) ui.hide();
   });
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot, { once: true });

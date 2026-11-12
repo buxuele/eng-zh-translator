@@ -23,6 +23,7 @@ window.EZ = window.EZ || {};
     if (el.hasAttribute && el.getAttribute("translate") === "no") return true;
     if (el.isContentEditable) return true;
     if (el.classList && el.classList.contains("ez-ui-host")) return true;
+    if (el.hasAttribute && el.hasAttribute("data-ez")) return true;
     if (el.classList && el.classList.contains("notranslate")) return true;
     if (el.className && typeof el.className === "string" && SKIP_CLASS_RE.test(el.className)) return true;
     return false;

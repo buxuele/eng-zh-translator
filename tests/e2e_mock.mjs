@@ -96,8 +96,6 @@ const snapshot = () =>
     const markers = (document.body.textContent.match(/译\d+：/g) || []).length;
     const paras = [...document.querySelectorAll(".para")];
     const translatedParas = paras.filter((p) => /译\d+：/.test(p.textContent)).length;
-    const host = document.querySelector(".ez-ui-host");
-    const sr = host && host.shadowRoot;
     return {
       markers,
       paras: paras.length,
@@ -105,7 +103,7 @@ const snapshot = () =>
       firstPara: document.querySelector(".para").textContent.slice(0, 50),
       code: document.querySelector("code").textContent,
       hidden: document.getElementById("hiddenMenu").textContent,
-      pill: sr ? { label: sr.querySelector(".label").textContent, count: sr.querySelector(".count").textContent } : null,
+      overlays: document.querySelectorAll("[data-ez]").length,
     };
   });
 
@@ -121,7 +119,8 @@ for (let i = 0; i < 60; i++) {
   const s = await snapshot();
   if (growth.length === 0 || growth[growth.length - 1] !== s.markers) growth.push(s.markers);
   if (i === 6) await page.screenshot({ path: path.join(SHOT_DIR, "14-假接口流式写入中.png") });
-  if (s.pill && s.pill.count.startsWith(`${s.paras} / ${s.paras}`)) break;
+  const state = await send("status");
+  if (state && state.state && state.state.status === "done" && state.state.queue === 0) break;
 }
 console.log(`标记增长曲线：${growth.join(" -> ")}`);
 check("译文逐步写入而不是一次性替换", growth.length >= 4, `出现 ${growth.length} 个不同阶段`);
@@ -138,10 +137,11 @@ check("隐藏块未被改写", /Hidden menu/.test(after.hidden), after.hidden);
 check("同批多对象合并返回被正确拆开", after.markers >= stats.uniqueSegments, `标记 ${after.markers} 段`);
 await page.screenshot({ path: path.join(SHOT_DIR, "15-假接口整页译完.png") });
 
-await page.evaluate(() => document.querySelector(".ez-ui-host").shadowRoot.querySelector(".toggle").click());
+await send("restore");
 await page.waitForTimeout(300);
 const restored = await snapshot();
 check("还原原文无损", restored.markers === 0 && /Content scripts/.test(restored.firstPara), restored.firstPara);
+check("页面没有常驻浮层", restored.overlays === 0, `浮层 ${restored.overlays} 个`);
 
 await page.reload({ waitUntil: "domcontentloaded" });
 await page.waitForTimeout(500);
@@ -216,7 +216,7 @@ check("开放 shadow root 内的静态文字已翻译", /译\d+：/.test(shadowS
 check("动态插入 shadow root 的文字也已翻译", /译\d+：/.test(shadowState.dynamicP), shadowState.dynamicP.slice(0, 40));
 check("shadow 外层 light DOM 仍正常翻译", /译\d+：/.test(shadowState.light), shadowState.light.slice(0, 40));
 
-await shadowPage.evaluate(() => document.querySelector(".ez-ui-host").shadowRoot.querySelector(".toggle").click());
+await send("restore", shadowUrl);
 await shadowPage.waitForTimeout(300);
 const restoredShadow = await readShadow();
 check(

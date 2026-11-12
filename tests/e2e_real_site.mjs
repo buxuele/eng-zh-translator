@@ -87,15 +87,14 @@ let waiting = null;
 for (let i = 0; i < 90; i++) {
   await page.waitForTimeout(1000);
   const s = await page.evaluate(() => {
-    const host = document.querySelector(".ez-ui-host");
-    const sr = host && host.shadowRoot;
     const cjk = (document.body.innerText.match(/[\u4e00-\u9fff]/g) || []).length;
-    return { cjk, label: sr ? sr.querySelector(".label").textContent : null, count: sr ? sr.querySelector(".count").textContent : null };
+    const overlays = document.querySelectorAll("[data-ez]").length;
+    return { cjk, overlays };
   });
-  if (s.label && s.label.includes("限流")) waiting = s.label;
   visible = s.cjk;
+  if (s.overlays) waiting = "页面出现浮层";
   if (s.cjk > 400 || i === 89) {
-    console.log(`第 ${i + 1} 秒：正文中文字符 ${s.cjk}，胶囊「${s.label} ${s.count}」`);
+    console.log(`第 ${i + 1} 秒：正文中文字符 ${s.cjk}，页面浮层 ${s.overlays} 个`);
     break;
   }
 }

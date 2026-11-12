@@ -70,19 +70,13 @@ const mockServer = http.createServer((req, res) => {
       return;
     }
     let segments = [];
-    let selectionText = "";
     try {
       const payload = JSON.parse(body);
-      const system = payload.messages.find((m) => m.role === "system")?.content || "";
       const user = payload.messages.find((m) => m.role === "user").content;
-      if (/Output only the translation/i.test(system)) {
-        selectionText = user;
-      } else {
-        segments = user.split("\n").filter(Boolean).map((line) => {
-          const tab = line.indexOf("\t");
-          return { i: Number(line.slice(0, tab)), text: line.slice(tab + 1) };
-        });
-      }
+      segments = user.split("\n").filter(Boolean).map((line) => {
+        const tab = line.indexOf("\t");
+        return { i: Number(line.slice(0, tab)), text: line.slice(tab + 1) };
+      });
     } catch {
       segments = [];
     }
@@ -95,21 +89,6 @@ const mockServer = http.createServer((req, res) => {
     });
     const send = (obj) => res.write(`data: ${JSON.stringify(obj)}\n\n`);
     send({ id: "guard", object: "chat.completion.chunk", choices: [{ index: 0, delta: { role: "assistant", content: "" }, finish_reason: null }] });
-    if (selectionText) {
-      for (const part of ["划词", "译文：", selectionText.slice(0, 16)]) {
-        send({ id: "guard", object: "chat.completion.chunk", choices: [{ index: 0, delta: { content: part }, finish_reason: null }] });
-        await new Promise((r) => setTimeout(r, 20));
-      }
-      send({
-        id: "guard",
-        object: "chat.completion.chunk",
-        choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
-        usage: { prompt_tokens: 40, completion_tokens: 12 },
-      });
-      res.write("data: [DONE]\n\n");
-      res.end();
-      return;
-    }
     for (const seg of segments) {
       send({ id: "guard", object: "chat.completion.chunk", choices: [{ index: 0, delta: { content: JSON.stringify({ i: seg.i, t: `译${seg.i}：${seg.text.slice(0, 12)}` }) }, finish_reason: null }] });
       await new Promise((r) => setTimeout(r, 15));
@@ -236,16 +215,10 @@ async function openPopup() {
 }
 
 const snapshot = () =>
-  page.evaluate(() => {
-    const host = document.querySelector(".ez-ui-host");
-    const sr = host && host.shadowRoot;
-    return {
-      markers: (document.body.textContent.match(/译\d+：/g) || []).length,
-      label: sr ? sr.querySelector(".label").textContent : null,
-      count: sr ? sr.querySelector(".count").textContent : null,
-      note: sr && sr.querySelector(".note.show") ? sr.querySelector(".msg").textContent : null,
-    };
-  });
+  page.evaluate(() => ({
+    markers: (document.body.textContent.match(/译\d+：/g) || []).length,
+    overlays: document.querySelectorAll("[data-ez]").length,
+  }));
 
 await setSettings({
   apiKey: "mock-key",
@@ -272,7 +245,7 @@ let view = await snapshot();
 check("命中黑名单时引擎标记为免译", st.blocked === true && st.status === "blocked", `blocked=${st.blocked} status=${st.status}`);
 check("命中黑名单时不扫描也不翻译", st.total === 0 && view.markers === 0, `total=${st.total}，页面标记 ${view.markers}`);
 check("命中黑名单时不发送任何接口请求", mock.requests === 0, `接口请求 ${mock.requests} 次`);
-check("页面胶囊给出中文提示", /免译站点/.test(view.label || "") && /免翻译名单/.test(view.note || ""), `胶囊「${view.label}」，提示「${view.note}」`);
+check("免译提示来自真实状态且页面无浮层", /免翻译名单/.test(st.error || "") && view.overlays === 0, `提示「${(st.error || "").slice(0, 20)}」，浮层 ${view.overlays} 个`);
 await page.screenshot({ path: path.join(SHOT_DIR, "16-免译站点提示.png") });
 
 const popup = await openPopup();
@@ -295,12 +268,7 @@ const finished = await waitFor(async () => {
 check("整页翻译完成", !!finished && finished.done > 0, finished ? `已译 ${finished.done} / ${finished.total}，失败 ${finished.failed}` : "超时未完成");
 check("完成状态带真实耗时", !!finished && finished.durationMs > 0, `耗时 ${finished ? finished.durationMs : 0} 毫秒`);
 view = await snapshot();
-const detailLine = await page.evaluate(() => {
-  const host = document.querySelector(".ez-ui-host");
-  const sr = host && host.shadowRoot;
-  return sr ? sr.querySelector(".details .count-line").textContent : "";
-});
-check("页面角标显示段数与耗时", /^\d+ \/ \d+/.test(view.count || "") && /用时/.test(detailLine), `角标「${view.count}」，详情「${detailLine}」`);
+check("翻译后页面没有常驻浮层", view.overlays === 0, `浮层 ${view.overlays} 个`);
 await page.waitForTimeout(700);
 const badge = await swEval(async (u) => {
   const tabs = await chrome.tabs.query({});
@@ -370,7 +338,7 @@ const netPopup = {
   retryVisible: await netPopupPage.$eval("#retry", (el) => !el.classList.contains("hidden")),
 };
 check("弹窗为网络错误提供重试按钮", /网络/.test(netPopup.text) && netPopup.retryVisible, `${netPopup.text}｜重试按钮可见=${netPopup.retryVisible}`);
-await netPopupPage.screenshot({ path: path.join(SHOT_DIR, "17-错误重试.png") });
+await netPopupPage.screenshot({ path: path.join(SHOT_DIR, "21-错误重试.png") });
 
 mock.mode = "ok";
 const beforeRetry = mock.requests;
@@ -433,21 +401,7 @@ const optionFonts = await control.evaluate(() => ({
 check("设置页字号符合规范", optionFonts.body >= 16 && optionFonts.h1 >= 18 && optionFonts.h2 >= 18 && optionFonts.result >= 14, JSON.stringify(optionFonts));
 await control.screenshot({ path: path.join(SHOT_DIR, "18-设置页新版.png"), fullPage: true });
 
-const pillFonts = await page.evaluate(() => {
-  const host = document.querySelector(".ez-ui-host");
-  const sr = host && host.shadowRoot;
-  if (!sr) return null;
-  return {
-    count: parseFloat(getComputedStyle(sr.querySelector(".count")).fontSize),
-    label: parseFloat(getComputedStyle(sr.querySelector(".label")).fontSize),
-    button: parseFloat(getComputedStyle(sr.querySelector(".toggle")).fontSize),
-  };
-});
-check("页面胶囊字号符合规范", !!pillFonts && pillFonts.count >= 14 && pillFonts.label >= 14 && pillFonts.button >= 14, JSON.stringify(pillFonts));
-
-await setSettings({ scope: "all", autoTranslateHosts: [], hoverOriginal: true, selectionTranslate: true });
-await page.waitForTimeout(300);
-const requestsBeforeSelection = mock.requests;
+const requestsBeforeSelect = mock.requests;
 await page.evaluate(() => {
   const target = [...document.querySelectorAll(".para")].find((el) => /译\d+：/.test(el.textContent));
   const range = document.createRange();
@@ -456,34 +410,15 @@ await page.evaluate(() => {
   sel.removeAllRanges();
   sel.addRange(range);
   document.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+  target.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
 });
-await page.waitForTimeout(300);
-const pickShown = await page.evaluate(() => {
-  const host = document.querySelector(".ez-ui-host");
-  const btn = host && host.shadowRoot.querySelector(".pick");
-  return btn ? btn.classList.contains("show") : false;
-});
-check("选中英文后出现划词翻译按钮", pickShown, `按钮可见 ${pickShown}`);
-await page.evaluate(() => document.querySelector(".ez-ui-host").shadowRoot.querySelector(".pick").click());
-const selDone = await waitFor(async () => {
-  return page.evaluate(() => {
-    const host = document.querySelector(".ez-ui-host");
-    const sr = host && host.shadowRoot;
-    const card = sr && sr.querySelector(".selection-card");
-    if (!card || !card.classList.contains("show")) return null;
-    const text = sr.querySelector(".selection-card .body").textContent;
-    return /划词译文：/.test(text) ? text : null;
-  });
-}, 15000, 200);
-check("划词面板显示流式译文", !!selDone, selDone ? selDone.slice(0, 40) : "未出现译文");
-check("划词确实发起了接口请求", mock.requests > requestsBeforeSelection, `新增请求 ${mock.requests - requestsBeforeSelection} 次`);
-const copyVisible = await page.evaluate(() => {
-  const host = document.querySelector(".ez-ui-host");
-  const btn = host && host.shadowRoot.querySelector(".sel-copy");
-  return btn ? !btn.classList.contains("hidden") : false;
-});
-check("划词面板提供复制按钮", copyVisible, `复制按钮可见 ${copyVisible}`);
-await page.screenshot({ path: path.join(SHOT_DIR, "19-划词翻译.png") });
+await page.waitForTimeout(500);
+const selectResult = await page.evaluate(() => ({
+  overlays: document.querySelectorAll("[data-ez]").length,
+  selection: String(window.getSelection()),
+}));
+check("选中文本不再弹出翻译按钮", selectResult.overlays === 0, `浮层 ${selectResult.overlays} 个`);
+check("选中文本不会发起接口请求", mock.requests === requestsBeforeSelect, `新增请求 ${mock.requests - requestsBeforeSelect} 次`);
 
 await page.evaluate(() => {
   const target = [...document.querySelectorAll(".para")].find((el) => /译\d+：/.test(el.textContent));
@@ -491,34 +426,18 @@ await page.evaluate(() => {
 });
 await page.waitForTimeout(700);
 const tipInfo = await page.evaluate(() => {
-  const host = document.querySelector(".ez-ui-host");
-  const tip = host.shadowRoot.querySelector(".hover-tip");
-  return { show: tip.classList.contains("show"), text: tip.textContent.slice(0, 40) };
+  const host = document.querySelector("[data-ez]");
+  const tip = host && host.shadowRoot.querySelector(".tip");
+  return { show: !!tip, text: tip ? tip.textContent.slice(0, 40) : "" };
 });
 check("悬停译文显示原句", tipInfo.show && /原文/.test(tipInfo.text), JSON.stringify(tipInfo));
-
-const collapsed = await page.evaluate(() => {
-  const host = document.querySelector(".ez-ui-host");
-  const sr = host.shadowRoot;
-  sr.querySelector(".collapse").click();
-  return { mini: sr.querySelector(".pill").classList.contains("mini") };
+await page.evaluate(() => {
+  document.dispatchEvent(new MouseEvent("mouseout", { bubbles: true }));
 });
 await page.waitForTimeout(300);
-const collapsedStored = await swEval(async () => {
-  const { uiCollapsed } = await chrome.storage.local.get("uiCollapsed");
-  return !!uiCollapsed;
-});
-check("收起后胶囊变为小圆点并持久化", collapsed.mini && collapsedStored, `mini=${collapsed.mini} stored=${collapsedStored}`);
-await page.evaluate(() => {
-  const host = document.querySelector(".ez-ui-host");
-  host.shadowRoot.querySelector(".pill").click();
-});
-await page.waitForTimeout(200);
-const expanded = await page.evaluate(() => {
-  const host = document.querySelector(".ez-ui-host");
-  return !host.shadowRoot.querySelector(".pill").classList.contains("mini");
-});
-check("点击小圆点可以重新展开", expanded, `展开 ${expanded}`);
+const tipGone = await page.evaluate(() => document.querySelectorAll("[data-ez]").length);
+check("移开鼠标后浮层立即移除", tipGone === 0, `浮层 ${tipGone} 个`);
+await page.screenshot({ path: path.join(SHOT_DIR, "19-悬停原文.png") });
 
 const autoPage = await ctx.newPage();
 watch(autoPage, "白名单页");
@@ -644,7 +563,7 @@ const ttlCacheText = await ttlOptions.textContent("#cacheCount");
 check("设置页显示条数与占用估算", /条/.test(ttlCacheText) && /KB|MB|字节/.test(ttlCacheText), ttlCacheText);
 check("设置页显示条数上限与过期策略", /上限 100 条/.test(ttlCacheText) && /30 天过期/.test(ttlCacheText), ttlCacheText);
 check("启动时统计到过期清理", !!ttlStats && ttlStats.cacheExpired >= 1, `过期清理 ${ttlStats && ttlStats.cacheExpired} 条，当前 ${ttlStats && ttlStats.cacheEntries} 条`);
-await ttlOptions.screenshot({ path: path.join(SHOT_DIR, "18-缓存治理.png"), fullPage: true });
+await ttlOptions.screenshot({ path: path.join(SHOT_DIR, "22-缓存治理.png"), fullPage: true });
 
 await ttlSession.ctx.close();
 

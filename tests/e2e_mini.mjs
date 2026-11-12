@@ -92,6 +92,7 @@ const snapshot = () =>
       code: document.querySelector("code").textContent,
       hidden: document.getElementById("hiddenMenu").textContent,
       first: document.getElementById("m1").textContent,
+      overlays: document.querySelectorAll("[data-ez]").length,
     };
   });
 
@@ -116,10 +117,11 @@ check("引擎记录真实用量", state.tokensIn > 0 && state.tokensOut > 0 && s
 check("错误留痕字段可用", Array.isArray(state.errors), `已有 ${state.errors.length} 条记录`);
 await page.screenshot({ path: path.join(SHOT_DIR, "13-迷你页翻译.png") });
 
-await page.evaluate(() => document.querySelector(".ez-ui-host").shadowRoot.querySelector(".toggle").click());
+await send("restore");
 await page.waitForTimeout(300);
 const restored = await snapshot();
 check("一键还原原文", restored.translated === 0, `还原后中文段落 ${restored.translated}`);
+check("页面没有常驻浮层", restored.overlays === 0, `浮层 ${restored.overlays} 个`);
 
 await page.reload({ waitUntil: "domcontentloaded" });
 await page.waitForTimeout(500);

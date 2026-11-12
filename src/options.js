@@ -7,7 +7,7 @@ let saveTimer = null;
 let devKey = "";
 
 const NUMERIC = ["prefetchScreens", "batchSegments", "batchChars", "concurrency", "maxTokens", "temperature", "cacheLimit", "cacheMaxMB", "cacheTtlDays", "idleFillMaxChars"];
-const BOOLEAN = ["flashHighlight", "selectionTranslate", "hoverOriginal"];
+const BOOLEAN = ["flashHighlight", "hoverOriginal"];
 const PRESET_OF = (model) => {
   const hit = MODEL_PRESETS.find((item) => item.model && item.model === model);
   return hit ? hit.id : "custom";

@@ -3,7 +3,6 @@ import {
   MSG,
   buildSystemPrompt,
   buildUserMessage,
-  buildSelectionPrompt,
   cacheKeyFor,
   parseGroqDuration,
   estimateTokens,
@@ -495,112 +494,6 @@ async function streamCompletion(segments, signal, onSegment) {
   return { usage, finishReason, firstContentAt, ms: Date.now() - started };
 }
 
-async function streamSelection(text, signal, onDelta) {
-  const key = apiKeyOf();
-  if (!key) throw new ApiError(0, "", null, "config");
-  await assertEndpointPermission();
-
-  const body = {
-    model: settings.model,
-    messages: [
-      { role: "system", content: buildSelectionPrompt(settings.targetLang) },
-      { role: "user", content: text },
-    ],
-    temperature: Number(settings.temperature),
-    max_completion_tokens: Math.min(Number(settings.maxTokens), 1200),
-    top_p: Number(settings.topP),
-    reasoning_effort: settings.reasoningEffort,
-    stream: true,
-  };
-
-  const started = Date.now();
-  const res = await fetch(apiUrl(), {
-    method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-    signal,
-  });
-  noteRateFromHeaders(res);
-  if (!res.ok) throw new ApiError(res.status, await res.text(), res.headers);
-
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let usage = null;
-  let out = "";
-  let firstAt = null;
-
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const parts = buffer.split("\n");
-    buffer = parts.pop();
-    for (const part of parts) {
-      const line = part.trim();
-      if (!line.startsWith("data:")) continue;
-      const payload = line.slice(5).trim();
-      if (!payload || payload === "[DONE]") continue;
-      let json = null;
-      try {
-        json = JSON.parse(payload);
-      } catch {
-        continue;
-      }
-      if (json.usage) usage = json.usage;
-      const delta = json.choices?.[0]?.delta;
-      if (delta && delta.content) {
-        if (firstAt === null) firstAt = Date.now() - started;
-        out += delta.content;
-        onDelta(delta.content, out);
-      }
-    }
-  }
-  return { text: out.trim(), usage, ms: Date.now() - started, firstAt };
-}
-
-async function handleText(port, msg, signal) {
-  await settingsReady;
-  await ensureCache();
-  const lang = msg.lang || settings.targetLang;
-  const text = String(msg.text || "").trim();
-  if (!text) {
-    port.postMessage({ t: MSG.TEXT_DONE, id: msg.id, text: "", cached: false, ms: 0 });
-    return;
-  }
-  const key = cacheKeyFor(text, lang, settings.model);
-  const hit = cacheGet(key);
-  if (hit !== null) {
-    port.postMessage({ t: MSG.TEXT_DONE, id: msg.id, text: hit, cached: true, ms: 0 });
-    return;
-  }
-  const estimate = estimateTokens([text]);
-  const wait = quotaWaitFor(estimate);
-  if (wait > 0) {
-    port.postMessage({ t: MSG.RATE, id: msg.id, waitMs: wait, remainingTokens: rate.remainingTokens, limitTokens: rate.limitTokens });
-    await new Promise((r) => setTimeout(r, Math.min(wait, 30000)));
-  }
-  await acquireSlot();
-  try {
-    const out = await streamSelection(text, signal, (delta) => port.postMessage({ t: MSG.TEXT_DELTA, id: msg.id, delta }));
-    if (out.text) cacheSet(key, out.text);
-    port.postMessage({
-      t: MSG.TEXT_DONE,
-      id: msg.id,
-      text: out.text,
-      cached: false,
-      ms: out.ms,
-      tokensIn: out.usage?.prompt_tokens ?? null,
-      tokensOut: out.usage?.completion_tokens ?? null,
-    });
-  } catch (err) {
-    const info = describeFailure(err);
-    port.postMessage({ t: MSG.ERR, id: msg.id, code: info.code, title: info.title, message: info.message, detail: info.detail, retryable: info.retryable, failedIndexes: [] });
-  } finally {
-    releaseSlot();
-  }
-}
-
 async function translateBatch(segments, signal, onSegment, onWait) {
   const estimate = estimateTokens(segments);
   for (let attempt = 1; attempt <= 4; attempt++) {
@@ -780,6 +673,11 @@ async function handleCacheLookup(port, msg) {
 
 function setBadge(tabId, msg) {
   if (tabId === undefined) return;
+  if (msg.status === "error" || msg.status === "blocked") {
+    chrome.action.setBadgeText({ tabId, text: "!" });
+    chrome.action.setBadgeBackgroundColor({ tabId, color: "#d92d20" });
+    return;
+  }
   if (!msg.total) {
     chrome.action.setBadgeText({ tabId, text: "" });
     return;
@@ -809,17 +707,6 @@ chrome.runtime.onConnect.addListener((port) => {
       inflight.set(msg.id, controller);
       handleBatch(port, msg, controller.signal)
         .catch((err) => port.postMessage({ t: MSG.ERR, id: msg.id, code: "internal", message: String(err && err.message ? err.message : err), retryable: false, failedIndexes: [] }))
-        .finally(() => inflight.delete(msg.id));
-      return;
-    }
-    if (msg.t === MSG.TEXT) {
-      const controller = new AbortController();
-      inflight.set(msg.id, controller);
-      handleText(port, msg, controller.signal)
-        .catch((err) => {
-          const info = describeFailure(err);
-          port.postMessage({ t: MSG.ERR, id: msg.id, code: info.code, title: info.title, message: info.message, detail: info.detail, retryable: info.retryable, failedIndexes: [] });
-        })
         .finally(() => inflight.delete(msg.id));
       return;
     }

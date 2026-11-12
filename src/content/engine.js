@@ -16,7 +16,6 @@ window.EZ = window.EZ || {};
     blacklist: [],
     autoTranslateHosts: [],
     scope: "all",
-    selectionTranslate: true,
     hoverOriginal: true,
     idleFillMaxChars: 20000,
     flashHighlight: true,
@@ -63,8 +62,6 @@ window.EZ = window.EZ || {};
     const bucketed = new Set();
     const writes = [];
     const batches = new Map();
-    const textRequests = new Map();
-    let textSeq = 0;
     let batchSeq = 0;
     let port = null;
     let portReady = false;
@@ -130,6 +127,7 @@ window.EZ = window.EZ || {};
           for (const n of r.addedNodes) {
             if (n.nodeType === Node.ELEMENT_NODE) {
               if (n.classList && n.classList.contains("ez-ui-host")) continue;
+              if (n.hasAttribute && n.hasAttribute("data-ez")) continue;
               dirtyRoots.add(n);
             } else if (n.nodeType === Node.TEXT_NODE && n.parentElement) {
               dirtyRoots.add(n.parentElement);
@@ -329,31 +327,6 @@ window.EZ = window.EZ || {};
 
     function onPortMessage(msg) {
       if (!msg || !msg.t) return;
-      const textId = msg.id !== undefined ? String(msg.id) : "";
-      if (textId.startsWith("t") && textRequests.has(textId)) {
-        if (msg.t === MSG.TEXT_DELTA) {
-          const req = textRequests.get(textId);
-          if (req && req.onDelta) req.onDelta(msg.delta || "", null);
-          return;
-        }
-        if (msg.t === MSG.TEXT_DONE) {
-          const req = textRequests.get(textId);
-          textRequests.delete(textId);
-          if (req && req.onDone) req.onDone({ text: msg.text || "", cached: !!msg.cached, ms: msg.ms || 0, tokensIn: msg.tokensIn, tokensOut: msg.tokensOut });
-          return;
-        }
-        if (msg.t === MSG.ERR) {
-          const req = textRequests.get(textId);
-          textRequests.delete(textId);
-          if (req && req.onError) req.onError(msg);
-          return;
-        }
-        if (msg.t === MSG.RATE) {
-          const req = textRequests.get(textId);
-          if (req && req.onWait) req.onWait(msg.waitMs || 0);
-          return;
-        }
-      }
       if (msg.t === MSG.SEG) return applySeg(msg);
       if (msg.t === MSG.DONE) return finishBatch(msg);
       if (msg.t === MSG.ERR) return failBatch(msg);
@@ -702,7 +675,7 @@ window.EZ = window.EZ || {};
       progressTimer = setTimeout(() => {
         progressTimer = null;
         updateStatus();
-        if (portReady && active) port.postMessage({ t: MSG.PROGRESS, done: stats.done, total: stats.total });
+        if (portReady && active) port.postMessage({ t: MSG.PROGRESS, done: stats.done, total: stats.total, status: stats.status, failed: stats.failed });
       }, 350);
     }
 
@@ -840,22 +813,7 @@ window.EZ = window.EZ || {};
         for (const u of batch.units) requeue(u);
       }
       batches.clear();
-      for (const id of textRequests.keys()) if (portReady) port.postMessage({ t: MSG.CANCEL, id });
-      textRequests.clear();
       updateStatus();
-    }
-
-    function translateText(text, handlers) {
-      const id = `t${++textSeq}`;
-      textRequests.set(id, handlers || {});
-      ensurePort().postMessage({ t: MSG.TEXT, id, text, lang: settings.targetLang });
-      return id;
-    }
-
-    function cancelText(id) {
-      if (!id) return;
-      textRequests.delete(id);
-      if (portReady) port.postMessage({ t: MSG.CANCEL, id });
     }
 
     function lookupOriginal(el) {
@@ -932,8 +890,6 @@ window.EZ = window.EZ || {};
       retry,
       restore,
       reapply,
-      translateText,
-      cancelText,
       lookupOriginal,
       loadSettings,
       getState: pickState,
