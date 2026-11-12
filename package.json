@@ -1,0 +1,22 @@
+{
+  "name": "eng-zh-page-translator",
+  "version": "1.2.0",
+  "private": true,
+  "description": "像谷歌翻译一样整页翻译英文网页的 Chrome 扩展，跟随滚动流式翻译，基于 Groq 的 gpt-oss 模型。",
+  "type": "module",
+  "scripts": {
+    "fixtures": "node tests/fixtures/make_fixture.mjs --big --mini --scroll",
+    "test:mini": "node tests/e2e_mini.mjs",
+    "test:mock": "node tests/e2e_mock.mjs",
+    "test:guards": "node tests/e2e_guards.mjs",
+    "test:e2e": "node tests/e2e_translate.mjs",
+    "test:scroll": "E2E_FIXTURE=scroll_page.html E2E_PORT=8795 E2E_PROFILE=.scroll_profile node tests/e2e_translate.mjs",
+    "test:throttle": "node tests/e2e_throttle.mjs",
+    "test:real": "node tests/e2e_real_site.mjs",
+    "probe": "node tests/probe_groq.mjs && node tests/probe_limits.mjs && node tests/probe_hardcases.mjs",
+    "icons": "./tools/build_icons.sh"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.64.1"
+  }
+}

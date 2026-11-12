@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>整页英译中 · 设置</title>
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <span class="mark">译</span>
+        <h1>整页英译中 设置</h1>
+        <span id="saveState" class="chip">已保存</span>
+      </header>
+
+      <section>
+        <h2>接口</h2>
+        <div class="field">
+          <label for="apiKey">Groq 密钥</label>
+          <div class="inline">
+            <input id="apiKey" type="password" placeholder="gsk_..." autocomplete="off" />
+            <button id="toggleKey" class="ghost" type="button">显示</button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="baseUrl">接口地址</label>
+          <input id="baseUrl" type="text" />
+        </div>
+        <div class="field">
+          <label>接口域名授权</label>
+          <div class="inline">
+            <button id="grantHost" class="ghost" type="button">授权当前接口域名</button>
+            <span id="permState" class="result">读取中</span>
+          </div>
+        </div>
+        <div class="field">
+          <label for="preset">模型档位</label>
+          <select id="preset">
+            <option value="quality">质量优先，gpt-oss-120b</option>
+            <option value="fast">速度优先，gpt-oss-20b</option>
+            <option value="custom">自定义模型</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="model">模型</label>
+          <div class="inline">
+            <select id="model"></select>
+            <button id="loadModels" class="ghost" type="button">拉取列表</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>连接测试</label>
+          <div class="inline">
+            <button id="test" type="button">测试连接</button>
+            <span id="testResult" class="result">尚未测试</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>限流状态</label>
+          <span id="rateState" class="result">暂无数据</span>
+        </div>
+      </section>
+
+      <section>
+        <h2>翻译行为</h2>
+        <div class="field">
+          <label for="targetLang">目标语言</label>
+          <select id="targetLang"></select>
+        </div>
+        <div class="field">
+          <label for="mode">翻译范围</label>
+          <select id="mode">
+            <option value="scroll">跟随滚动，先看先译</option>
+            <option value="full">整页立即翻译</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="scope">采集范围</label>
+          <select id="scope">
+            <option value="all">整页所有文字</option>
+            <option value="article">只译正文区域，省一半额度</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="idleFill">空闲补全</label>
+          <select id="idleFill">
+            <option value="auto">自动，小页面一次翻完，大页面只翻可见</option>
+            <option value="on">始终在停止滚动后补全整页</option>
+            <option value="off">只翻译可见与预取区域</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="idleFillMaxChars">自动阈值字符</label>
+          <input id="idleFillMaxChars" type="number" min="500" max="200000" step="500" />
+        </div>
+        <div class="field">
+          <label for="prefetchScreens">预取屏数</label>
+          <input id="prefetchScreens" type="number" min="1" max="8" step="1" />
+        </div>
+        <div class="field">
+          <label>划词翻译</label>
+          <label class="switch"><input id="selectionTranslate" type="checkbox" /><span>选中英文时出现翻译按钮</span></label>
+        </div>
+        <div class="field">
+          <label>悬停看原文</label>
+          <label class="switch"><input id="hoverOriginal" type="checkbox" /><span>鼠标停在译文上显示原句</span></label>
+        </div>
+        <div class="field">
+          <label>流式高亮</label>
+          <label class="switch"><input id="flashHighlight" type="checkbox" /><span>新译文淡入高亮</span></label>
+        </div>
+      </section>
+
+      <section>
+        <h2>性能与成本</h2>
+        <div class="field">
+          <label for="batchSegments">每批段数</label>
+          <input id="batchSegments" type="number" min="2" max="40" step="1" />
+        </div>
+        <div class="field">
+          <label for="batchChars">每批字符</label>
+          <input id="batchChars" type="number" min="200" max="4000" step="100" />
+        </div>
+        <div class="field">
+          <label for="concurrency">并发请求</label>
+          <input id="concurrency" type="number" min="1" max="6" step="1" />
+        </div>
+        <div class="field">
+          <label for="maxTokens">最大输出 tokens</label>
+          <input id="maxTokens" type="number" min="512" max="16384" step="256" />
+        </div>
+        <div class="field">
+          <label for="temperature">温度</label>
+          <input id="temperature" type="number" min="0" max="2" step="0.1" />
+        </div>
+        <div class="field">
+          <label for="reasoningEffort">思考强度</label>
+          <select id="reasoningEffort">
+            <option value="low">低，最快</option>
+            <option value="medium">中</option>
+            <option value="high">高</option>
+          </select>
+        </div>
+      </section>
+
+      <section>
+        <h2>站点规则</h2>
+        <div class="field column">
+          <label for="blacklist">免翻译站点</label>
+          <textarea id="blacklist" rows="3" placeholder="一行一个域名，例如 mail.google.com，子域名同样命中"></textarea>
+        </div>
+        <div class="field">
+          <label>黑名单状态</label>
+          <span id="blacklistState" class="result">未设置，所有站点都会翻译</span>
+        </div>
+        <div class="field column">
+          <label for="autoTranslate">进站自动翻译</label>
+          <textarea id="autoTranslate" rows="3" placeholder="一行一个域名，打开页面就自动开始翻译"></textarea>
+        </div>
+        <div class="field">
+          <label>白名单状态</label>
+          <span id="autoState" class="result">未设置，需要手动点翻译</span>
+        </div>
+      </section>
+
+      <section>
+        <h2>缓存</h2>
+        <div class="field">
+          <label>已缓存条目</label>
+          <span id="cacheCount" class="result">读取中</span>
+        </div>
+        <div class="field">
+          <label for="cacheLimit">条数上限</label>
+          <input id="cacheLimit" type="number" min="0" max="50000" step="500" />
+        </div>
+        <div class="field">
+          <label for="cacheMaxMB">占用上限 MB</label>
+          <input id="cacheMaxMB" type="number" min="0" max="64" step="0.5" />
+        </div>
+        <div class="field">
+          <label for="cacheTtlDays">过期天数</label>
+          <input id="cacheTtlDays" type="number" min="0" max="3650" step="1" />
+        </div>
+        <div class="field">
+          <label>清理</label>
+          <div class="inline">
+            <button id="purgeCache" class="ghost" type="button">清理过期</button>
+            <button id="clearCache" class="ghost" type="button">清空缓存</button>
+            <span id="clearResult" class="result"></span>
+          </div>
+        </div>
+        <p class="hint">条数或占用上限填 0 表示不限制；过期天数填 0 表示不按时间过期。超出上限时按最近最少使用清理。</p>
+      </section>
+
+      <footer>
+        <button id="reset" class="ghost" type="button">恢复默认设置</button>
+        <span class="hint">改动即刻生效，无需重装扩展。</span>
+      </footer>
+    </main>
+    <script type="module" src="options.js"></script>
+  </body>
+</html>

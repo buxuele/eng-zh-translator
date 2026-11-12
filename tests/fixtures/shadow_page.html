@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Shadow DOM Sample</title>
+    <style>body{margin:0;padding:20px;font:16px/1.6 system-ui,sans-serif}</style>
+  </head>
+  <body>
+    <h1>Open shadow roots must join the translation queue</h1>
+    <div id="shadowHost"></div>
+    <p>Light DOM paragraph outside the shadow root still translates normally.</p>
+    <script>
+      const host = document.getElementById("shadowHost");
+      const root = host.attachShadow({ mode: "open" });
+      root.innerHTML = '<section><h2>Shadow heading inside a web component</h2><p id="staticP">Text living inside an open shadow root must be translated by the same engine.</p></section>';
+      setTimeout(() => {
+        const extra = document.createElement("p");
+        extra.id = "dynamicP";
+        extra.textContent = "Dynamically appended shadow text must also be picked up later.";
+        root.querySelector("section").appendChild(extra);
+      }, 900);
+    </script>
+  </body>
+</html>

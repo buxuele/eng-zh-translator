@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="utf-8" /><title>Tall Scroll Sample</title>
+  <style>body{margin:0;padding:20px;font:16px/1.6 system-ui,sans-serif}.hidden{display:none}</style></head>
+  <body>
+    <h1>Scroll driven translation on a tall page</h1>
+    <nav><a href="#">Home</a><a href="#">Docs</a><a href="#">Pricing</a></nav>
+    <p class="para" id="s1" style="margin-bottom:85vh">Content scripts read the page. Section 1 continues here.</p>
+    <p class="para" id="s2" style="margin-bottom:85vh">The worker owns the network calls. Section 2 continues here.</p>
+    <p class="para" id="s3" style="margin-bottom:85vh">The queue follows the reader. Section 3 continues here.</p>
+    <p class="para" id="s4" style="margin-bottom:85vh">Cached lines return at once. Section 4 continues here.</p>
+    <p class="para" id="s5" style="margin-bottom:85vh">Batches keep context together. Section 5 continues here.</p>
+    <p class="para" id="s6" style="margin-bottom:85vh">Restoring text must be exact. Section 6 continues here.</p>
+    <p class="para" id="s7" style="margin-bottom:85vh">Rate limits pace the drain. Section 7 continues here.</p>
+    <p class="para" id="s8" style="margin-bottom:85vh">Streaming keeps readers calm. Section 8 continues here.</p>
+    <p class="para" id="s9" style="margin-bottom:85vh">Hidden menus stay untouched. Section 9 continues here.</p>
+    <p class="para" id="s10" style="margin-bottom:85vh">Code samples stay in English. Section 10 continues here.</p>
+    <p class="para" id="s11" style="margin-bottom:85vh">Content scripts read the page. Section 11 continues here.</p>
+    <p class="para" id="s12" style="margin-bottom:85vh">The worker owns the network calls. Section 12 continues here.</p>
+    <p class="para" id="s13" style="margin-bottom:85vh">The queue follows the reader. Section 13 continues here.</p>
+    <p class="para" id="s14" style="margin-bottom:85vh">Cached lines return at once. Section 14 continues here.</p>
+    <p class="para" id="s15" style="margin-bottom:85vh">Batches keep context together. Section 15 continues here.</p>
+    <p class="para" id="s16" style="margin-bottom:85vh">Restoring text must be exact. Section 16 continues here.</p>
+    <p class="para" id="s17" style="margin-bottom:85vh">Rate limits pace the drain. Section 17 continues here.</p>
+    <p class="para" id="s18" style="margin-bottom:85vh">Streaming keeps readers calm. Section 18 continues here.</p>
+    <p class="para" id="s19" style="margin-bottom:85vh">Hidden menus stay untouched. Section 19 continues here.</p>
+    <p class="para" id="s20" style="margin-bottom:85vh">Code samples stay in English. Section 20 continues here.</p>
+    <p class="para" id="s21" style="margin-bottom:85vh">Content scripts read the page. Section 21 continues here.</p>
+    <p class="para" id="s22" style="margin-bottom:85vh">The worker owns the network calls. Section 22 continues here.</p>
+    <p class="para" id="s23" style="margin-bottom:85vh">The queue follows the reader. Section 23 continues here.</p>
+    <p class="para" id="s24" style="margin-bottom:85vh">Cached lines return at once. Section 24 continues here.</p>
+    <p class="para" id="s25" style="margin-bottom:85vh">Batches keep context together. Section 25 continues here.</p>
+    <p class="para" id="s26" style="margin-bottom:85vh">Restoring text must be exact. Section 26 continues here.</p>
+    <p class="para" id="s27" style="margin-bottom:85vh">Rate limits pace the drain. Section 27 continues here.</p>
+    <p class="para" id="s28" style="margin-bottom:85vh">Streaming keeps readers calm. Section 28 continues here.</p>
+    <p class="para" id="s29" style="margin-bottom:85vh">Hidden menus stay untouched. Section 29 continues here.</p>
+    <p class="para" id="s30" style="margin-bottom:85vh">Code samples stay in English. Section 30 continues here.</p>
+    <p class="para" id="s31" style="margin-bottom:85vh">Content scripts read the page. Section 31 continues here.</p>
+    <p class="para" id="s32" style="margin-bottom:85vh">The worker owns the network calls. Section 32 continues here.</p>
+    <p class="para" id="s33" style="margin-bottom:85vh">The queue follows the reader. Section 33 continues here.</p>
+    <p class="para" id="s34" style="margin-bottom:85vh">Cached lines return at once. Section 34 continues here.</p>
+    <p class="para" id="s35" style="margin-bottom:85vh">Batches keep context together. Section 35 continues here.</p>
+    <p class="para" id="s36" style="margin-bottom:85vh">Restoring text must be exact. Section 36 continues here.</p>
+    <p class="para" id="s37" style="margin-bottom:85vh">Rate limits pace the drain. Section 37 continues here.</p>
+    <p class="para" id="s38" style="margin-bottom:85vh">Streaming keeps readers calm. Section 38 continues here.</p>
+    <p class="para" id="s39" style="margin-bottom:85vh">Hidden menus stay untouched. Section 39 continues here.</p>
+    <p class="para" id="s40" style="margin-bottom:85vh">Code samples stay in English. Section 40 continues here.</p>
+    <pre><code>const cache = new Map();</code></pre>
+    <div class="hidden" id="hiddenMenu">Hidden menu item that must stay English.</div>
+    <footer><p id="footerNote">The footer sits at the very bottom of this tall page.</p></footer>
+    <div id="dynamic"></div>
+    <script>
+      setTimeout(() => {
+        const el = document.createElement("p");
+        el.className = "para";
+        el.id = "dynamicOne";
+        el.textContent = "This paragraph was injected eight hundred milliseconds after load and it must still join the translation queue.";
+        document.getElementById("dynamic").appendChild(el);
+      }, 800);
+    </script>
+  </body>
+</html>

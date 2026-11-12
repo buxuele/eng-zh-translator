@@ -1,0 +1,7 @@
+.env
+node_modules/
+src/dev_config.json
+效果图/*.tmp
+.DS_Store
+.chrome_profile/
+.*_profile/

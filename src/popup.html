@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header>
+      <span class="mark">译</span>
+      <h1>整页英译中</h1>
+      <span id="chip" class="chip">未开始</span>
+    </header>
+
+    <div class="bar"><i id="barFill"></i></div>
+
+    <section class="stats">
+      <div class="stat"><b id="sDone">0</b><span>已译</span></div>
+      <div class="stat"><b id="sQueue">0</b><span>队列</span></div>
+      <div class="stat"><b id="sCached">0</b><span>命中缓存</span></div>
+      <div class="stat"><b id="sFailed">0</b><span>失败</span></div>
+    </section>
+
+    <div class="row">
+      <label for="lang">目标语言</label>
+      <select id="lang"></select>
+    </div>
+    <div class="row">
+      <label for="mode">翻译范围</label>
+      <select id="mode">
+        <option value="scroll">跟随滚动</option>
+        <option value="full">整页立即</option>
+      </select>
+    </div>
+
+    <label class="switch-row">
+      <span>此站免译</span>
+      <input id="siteBlacklist" type="checkbox" />
+    </label>
+    <label class="switch-row">
+      <span>进站自动翻译</span>
+      <input id="siteAuto" type="checkbox" />
+    </label>
+
+    <div id="errorBox" class="errorbox">
+      <div class="err-head">
+        <strong id="errorTitle">翻译遇到问题</strong>
+        <button id="errDetail" class="ghost small" type="button">详情</button>
+      </div>
+      <p id="errorText"></p>
+      <pre id="errorRaw" class="raw hidden"></pre>
+      <button id="retry" class="ghost small hidden" type="button">重试</button>
+    </div>
+
+    <p id="tip" class="tip"></p>
+
+    <div class="actions">
+      <button id="primary" class="primary" type="button">翻译此页</button>
+      <button id="secondary" class="secondary hidden" type="button">重新翻译</button>
+    </div>
+
+    <footer>
+      <span id="keyState" class="key">密钥未配置</span>
+      <a id="openOptions" href="#">设置</a>
+    </footer>
+
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>
