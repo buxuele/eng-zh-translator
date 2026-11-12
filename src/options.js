@@ -1,9 +1,10 @@
 import { DEFAULTS, LANGS, MSG, MODEL_PRESETS, parseBlacklist, originPatternOf, formatBytes } from "./shared/config.js";
-import { seedDevKey } from "./shared/dev_key.js";
+import { getDevConfigKey } from "./shared/dev_key.js";
 
 const $ = (id) => document.getElementById(id);
 let settings = { ...DEFAULTS };
 let saveTimer = null;
+let devKey = "";
 
 const NUMERIC = ["prefetchScreens", "batchSegments", "batchChars", "concurrency", "maxTokens", "temperature", "cacheLimit", "cacheMaxMB", "cacheTtlDays", "idleFillMaxChars"];
 const BOOLEAN = ["flashHighlight", "selectionTranslate", "hoverOriginal"];
@@ -43,7 +44,7 @@ function fillSelect(sel, items, value) {
 }
 
 function render() {
-  $("apiKey").value = settings.apiKey || "";
+  $("apiKey").value = settings.apiKey || devKey || "";
   $("baseUrl").value = settings.baseUrl;
   fillSelect($("model"), [], settings.model);
   fillSelect($("targetLang"), LANGS.map((l) => ({ value: l.id, label: l.label })), settings.targetLang);
@@ -243,7 +244,7 @@ async function refreshStats() {
 }
 
 async function init() {
-  await seedDevKey();
+  devKey = await getDevConfigKey();
   const stored = await chrome.storage.local.get("settings");
   settings = { ...DEFAULTS, ...(stored.settings || {}) };
   render();

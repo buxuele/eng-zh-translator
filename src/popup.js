@@ -1,5 +1,5 @@
 import { DEFAULTS, LANGS, MSG, formatDuration, hostMatchesBlacklist, normalizeDomain } from "./shared/config.js";
-import { seedDevKey } from "./shared/dev_key.js";
+import { getDevConfigKey } from "./shared/dev_key.js";
 
 const $ = (id) => document.getElementById(id);
 let settings = { ...DEFAULTS };
@@ -9,6 +9,7 @@ let polling = null;
 let host = "";
 let lastState = null;
 let rawOpen = false;
+let devKey = "";
 
 function chip(text, cls) {
   const el = $("chip");
@@ -171,7 +172,7 @@ async function refresh() {
 }
 
 function renderKeyState() {
-  const ok = !!settings.apiKey;
+  const ok = !!(settings.apiKey || devKey);
   $("keyState").textContent = ok ? `密钥已配置 · ${settings.model}` : "密钥未配置";
 }
 
@@ -226,7 +227,7 @@ async function primaryAction() {
 }
 
 async function init() {
-  await seedDevKey();
+  devKey = await getDevConfigKey();
   const stored = await chrome.storage.local.get("settings");
   settings = { ...DEFAULTS, ...(stored.settings || {}) };
   fillLangs();

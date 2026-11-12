@@ -13,14 +13,20 @@ import {
   originPatternOf,
   formatDuration,
 } from "./shared/config.js";
-import { seedDevKey } from "./shared/dev_key.js";
+import { getDevConfigKey } from "./shared/dev_key.js";
 
 const settings = { ...DEFAULTS };
+let devApiKey = "";
 const settingsReady = (async () => {
-  await seedDevKey();
+  devApiKey = await getDevConfigKey();
   const stored = await chrome.storage.local.get("settings");
   if (stored.settings) Object.assign(settings, stored.settings);
+  if (!settings.apiKey && devApiKey) settings.apiKey = devApiKey;
 })();
+
+function apiKeyOf() {
+  return settings.apiKey || devApiKey || "";
+}
 
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== "local") return;
@@ -422,7 +428,7 @@ function hostOfUrl(url) {
 }
 
 async function streamCompletion(segments, signal, onSegment) {
-  const key = settings.apiKey;
+  const key = apiKeyOf();
   if (!key) throw new ApiError(0, "", null, "config");
   await assertEndpointPermission();
 
@@ -490,7 +496,7 @@ async function streamCompletion(segments, signal, onSegment) {
 }
 
 async function streamSelection(text, signal, onDelta) {
-  const key = settings.apiKey;
+  const key = apiKeyOf();
   if (!key) throw new ApiError(0, "", null, "config");
   await assertEndpointPermission();
 
@@ -832,11 +838,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg || !msg.t) return false;
   if (msg.t === MSG.MODELS) {
     settingsReady.then(async () => {
-      if (!settings.apiKey) return sendResponse({ ok: false, message: "尚未配置密钥，请先填写 Groq 密钥。" });
+      if (!apiKeyOf()) return sendResponse({ ok: false, message: "尚未配置密钥，请先填写 Groq 密钥。" });
       try {
         await assertEndpointPermission();
         const res = await fetch((settings.baseUrl || DEFAULTS.baseUrl).replace(/\/+$/, "") + "/models", {
-          headers: { Authorization: `Bearer ${settings.apiKey}` },
+          headers: { Authorization: `Bearer ${apiKeyOf()}` },
         });
         const text = await res.text();
         if (!res.ok) {
